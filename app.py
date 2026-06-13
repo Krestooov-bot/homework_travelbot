@@ -90,9 +90,12 @@ with tab1:
                             temperature=temperature,
                             max_output_tokens=max_tokens
                         )
-                        for m in st.session_state.messages:
-                            role = "model" if m["role"] == "assistant" else "user"
-                            contents.append(types.Content(role=role, parts=[types.Part.from_text(m["content"])]))
+                            for m in st.session_state.messages:
+                                role = "model" if m["role"] == "assistant" else "user"
+                                safe_text = str(m.get("content", ""))
+                                if not safe_text.strip():
+                                    safe_text = " "
+                                contents.append(types.Content(role=role, parts=[types.Part.from_text(text=safe_text)]))
                         
                         try:
                             def stream():
