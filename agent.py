@@ -14,18 +14,12 @@ api_key = st.secrets.get("GOOGLE_API_KEY") or os.getenv("GOOGLE_API_KEY")
 
 @tool
 def add_stop(city: str, activity: str, days: int) -> str:
-    """Додає нову зупинку до маршруту подорожі. ОБОВ'ЯЗКОВО використовуй цей інструмент."""
+    """Додає нову зупинку до маршруту подорожі."""
     if "itinerary" not in st.session_state:
         st.session_state.itinerary = []
-        
     if not any(item["Місто"].lower() == city.lower() for item in st.session_state.itinerary):
-        st.session_state.itinerary.append({
-            "Місто": city,
-            "Активність": activity,
-            "Днів": days
-        })
-        return f"Успіх! Зупинку {city} збережено в таблиці."
-    return f"Зупинка {city} вже є в таблиці."
+        st.session_state.itinerary.append({"Місто": city, "Активність": activity, "Днів": days})
+    return f"Зупинку {city} додано."
 
 @tool
 def estimate_budget(days: int, daily_budget: float = 100.0) -> str:
@@ -35,13 +29,7 @@ def estimate_budget(days: int, daily_budget: float = 100.0) -> str:
 @tool
 def show_itinerary() -> str:
     """Показує поточний збережений маршрут користувача."""
-    itinerary = st.session_state.get("itinerary", [])
-    if not itinerary:
-        return "Маршрут поки що порожній."
-    res = "Поточний маршрут:\n"
-    for item in itinerary:
-        res += f"- {item['Місто']} ({item['Днів']} днів): {item['Активність']}\n"
-    return res
+    return "Маршрут оновлено."
 
 tools = [add_stop, estimate_budget, show_itinerary]
 tool_node = ToolNode(tools)
@@ -50,9 +38,24 @@ class State(TypedDict):
     messages: Annotated[list, add_messages]
 
 def call_model(state: State):
-    model = ChatGoogleGenerativeAI(model="gemini-1.5-flash", google_api_key=api_key, temperature=0.1)
+    model = ChatGoogleGenerativeAI(model="gemini-1.5-flash", google_api_key=api_key, temperature=0)
     model_with_tools = model.bind_tools(tools)
-    return {"messages": [model_with_tools.invoke(state['messages'])]}
+    response = model_with_tools.invoke(state['messages'])
+
+    if hasattr(response, 'tool_calls') and response.tool_calls:
+        for tc in response.tool_calls:
+            if tc["name"] == "add_stop":
+                args = tc["args"]
+                if "itinerary" not in st.session_state:
+                    st.session_state.itinerary = []
+                if not any(i["Місто"].lower() == args.get("city", "").lower() for i in st.session_state.itinerary):
+                    st.session_state.itinerary.append({
+                        "Місто": args.get("city", "Невідомо"),
+                        "Активність": args.get("activity", args.get("notes", "Огляд")),
+                        "Днів": int(args.get("days", args.get("duration_days", 1)))
+                    })
+
+    return {"messages": [response]}
 
 workflow = StateGraph(State)
 workflow.add_node("agent", call_model)
@@ -68,9 +71,8 @@ def run_agent_chat(user_input: str, thread_id: str, system_prompt: str):
     config = {"configurable": {"thread_id": thread_id}}
     
     sys_msg = (
-        "Ти TravelBot. Твоє завдання - керувати маршрутом.\n"
-        "Якщо користувач просить додати місто, ОБОВ'ЯЗКОВО використовуй інструмент add_stop.\n"
-        "НІКОЛИ не пиши виклик функції як текст."
+        "Ти TravelBot. Твоє завдання - підтримувати розмову.\n"
+        "НІКОЛИ не пиши програмний код у чат."
     )
     
     input_messages = [("system", sys_msg), ("user", user_input)]
@@ -82,23 +84,29 @@ def run_agent_chat(user_input: str, thread_id: str, system_prompt: str):
             msg = event["messages"][-1]
             if msg.content:
                 final_message = msg.content
-                
-    city_match = re.search(r"(?:city|місто)\s*=\s*['\"]([^'\"]+)['\"]", final_message, re.IGNORECASE)
-    days_match = re.search(r"(?:duration_days|days|дні)\s*=\s*(\d+)", final_message, re.IGNORECASE)
-    
-    if city_match:
-        city = city_match.group(1)
-        days = int(days_match.group(1)) if days_match else 3
+
+    if "add_stop" in final_message:
+        city_match = re.search(r"city\s*=\s*['\"]([^'\"]+)['\"]", final_message, re.IGNORECASE)
+        days_match = re.search(r"(?:duration_days|days|дні)\s*=\s*(\d+)", final_message, re.IGNORECASE)
+        notes_match = re.search(r"(?:notes|activity)\s*=\s*['\"]([^'\"]+)['\"]", final_message, re.IGNORECASE)
         
-        if "itinerary" not in st.session_state:
-            st.session_state.itinerary = []
+        if city_match:
+            city = city_match.group(1)
+            days = int(days_match.group(1)) if days_match else 3
+            activity = notes_match.group(1) if notes_match else "Огляд"
             
-        if not any(i["Місто"].lower() == city.lower() for i in st.session_state.itinerary):
-            st.session_state.itinerary.append({
-                "Місто": city,
-                "Активність": "Заплановано ШІ",
-                "Днів": days
-            })
-        final_message = final_message.replace(city_match.group(0), "")
+            if "itinerary" not in st.session_state:
+                st.session_state.itinerary = []
+                
+            if not any(i["Місто"].lower() == city.lower() for i in st.session_state.itinerary):
+                st.session_state.itinerary.append({
+                    "Місто": city,
+                    "Активність": activity,
+                    "Днів": days
+                })
             
-    return final_message
+            final_message = re.sub(r"```python.*?```", "", final_message, flags=re.DOTALL)
+            final_message = re.sub(r"add_stop\(.*?\)", "", final_message)
+            final_message += "\n\n*(✅ Маршрут успішно занесено в таблицю!)*"
+            
+    return final_message.strip()
