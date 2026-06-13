@@ -12,8 +12,16 @@ import streamlit as st
 api_key = st.secrets.get("GOOGLE_API_KEY") or os.getenv("GOOGLE_API_KEY")
 
 @tool
-def add_stop(city: str, activity: str, days: int):
-    """Додає нову зупинку до маршруту подорожі."""
+def add_stop(city: str, activity: str, days: int) -> str:
+    """
+    ОБОВ'ЯЗКОВО використовуй цей інструмент (Function Call), щоб додати місто до маршруту. 
+    НІКОЛИ не пиши виклик цієї функції текстом у чат.
+    
+    Аргументи:
+    - city: назва міста (наприклад, 'Рим')
+    - activity: опис того, що там робити (наприклад, 'Відвідування Колізею')
+    - days: кількість днів (ціле число, наприклад, 3)
+    """
     if "itinerary" not in st.session_state:
         st.session_state.itinerary = []
     
@@ -22,20 +30,25 @@ def add_stop(city: str, activity: str, days: int):
         "Активність": activity,
         "Днів": days
     })
-    return f"Зупинку в місті {city} успішно додано до плану."
+    return f"Системне повідомлення: Зупинку в місті {city} успішно додано до плану."
 
 @tool
-def estimate_budget(days: int, daily_budget: float = 100.0):
-    """Розраховує орієнтовний бюджет подорожі."""
+def estimate_budget(days: int, daily_budget: float = 100.0) -> str:
+    """
+    Використовуй для розрахунку орієнтовного бюджету подорожі.
+    Аргументи:
+    - days: загальна кількість днів
+    - daily_budget: бюджет на один день (за замовчуванням 100.0)
+    """
     total = days * daily_budget
-    return f"Орієнтовний бюджет на {days} днів становить {total}$."
+    return f"Системне повідомлення: Орієнтовний бюджет на {days} днів становить {total}$."
 
 @tool
-def show_itinerary():
-    """Показує поточний збережений маршрут користувача."""
+def show_itinerary() -> str:
+    """Використовуй, щоб переглянути поточний збережений маршрут користувача."""
     itinerary = st.session_state.get("itinerary", [])
     if not itinerary:
-        return "Маршрут поки що порожній."
+        return "Системне повідомлення: Маршрут поки що порожній."
     
     res = "Поточний маршрут:\n"
     for item in itinerary:
@@ -49,8 +62,7 @@ class State(TypedDict):
     messages: Annotated[list, add_messages]
 
 def call_model(state: State):
-    # ВАЖЛИВО: Використовуємо стабільну 1.5-flash для роботи з інструментами
-    model = ChatGoogleGenerativeAI(model="gemini-1.5-flash", google_api_key=api_key, temperature=0.2)
+    model = ChatGoogleGenerativeAI(model="gemini-1.5-flash", google_api_key=api_key, temperature=0.1)
     model_with_tools = model.bind_tools(tools)
     return {"messages": [model_with_tools.invoke(state['messages'])]}
 
@@ -69,8 +81,14 @@ def run_agent_chat(user_input: str, thread_id: str, system_prompt: str):
     config = {"configurable": {"thread_id": thread_id}}
     
     input_messages = []
-    if system_prompt:
-        input_messages.append(("system", system_prompt))
+    
+    hardcoded_prompt = (
+        f"{system_prompt}\n"
+        "ВАЖЛИВО: Ти маєш доступ до інструментів. Ти ПОВИНЕН викликати їх програмно. "
+        "НЕ пиши код Python у своїх відповідях."
+    )
+    
+    input_messages.append(("system", hardcoded_prompt))
     input_messages.append(("user", user_input))
     
     events = compiled_graph.stream({"messages": input_messages}, config, stream_mode="values")
