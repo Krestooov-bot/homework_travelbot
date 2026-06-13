@@ -28,16 +28,29 @@ def add_stop(city: str, activity: str, days: int):
 def estimate_budget(days: int, daily_budget: float = 100.0):
     """Розраховує орієнтовний бюджет подорожі."""
     total = days * daily_budget
-    return f"Орієнтовний бюджет на {days} днів при витратах {daily_budget}$/день становить {total}$."
+    return f"Орієнтовний бюджет на {days} днів становить {total}$."
 
-tools = [add_stop, estimate_budget]
+@tool
+def show_itinerary():
+    """Показує поточний збережений маршрут користувача."""
+    itinerary = st.session_state.get("itinerary", [])
+    if not itinerary:
+        return "Маршрут поки що порожній."
+    
+    res = "Поточний маршрут:\n"
+    for item in itinerary:
+        res += f"- {item['Місто']} ({item['Днів']} днів): {item['Активність']}\n"
+    return res
+
+tools = [add_stop, estimate_budget, show_itinerary]
 tool_node = ToolNode(tools)
 
 class State(TypedDict):
     messages: Annotated[list, add_messages]
 
 def call_model(state: State):
-    model = ChatGoogleGenerativeAI(model="gemini-2.5-flash", google_api_key=api_key, temperature=0.3)
+    # ВАЖЛИВО: Використовуємо стабільну 1.5-flash для роботи з інструментами
+    model = ChatGoogleGenerativeAI(model="gemini-1.5-flash", google_api_key=api_key, temperature=0.2)
     model_with_tools = model.bind_tools(tools)
     return {"messages": [model_with_tools.invoke(state['messages'])]}
 
@@ -65,6 +78,8 @@ def run_agent_chat(user_input: str, thread_id: str, system_prompt: str):
     final_message = ""
     for event in events:
         if "messages" in event:
-            final_message = event["messages"][-1].content
-            
+            msg = event["messages"][-1]
+            if msg.content:
+                final_message = msg.content
+                
     return final_message
