@@ -7,9 +7,6 @@ from google import genai
 from google.genai import types
 from agent import run_agent_chat
 
-# ==========================================
-# 2a. НАЛАШТУВАННЯ СТОРІНКИ ТА CSS (6c)
-# ==========================================
 st.set_page_config(page_title="TravelBot AI", page_icon="✈️", layout="wide")
 
 st.markdown("""
@@ -21,9 +18,6 @@ st.markdown("""
 
 api_key = st.secrets.get("GOOGLE_API_KEY")
 
-# ==========================================
-# 4a. ІНІЦІАЛІЗАЦІЯ GEMINI КЛІЄНТА (Кешування)
-# ==========================================
 @st.cache_resource
 def get_client():
     if not api_key:
@@ -33,9 +27,6 @@ def get_client():
 
 client = get_client()
 
-# ==========================================
-# 2c. ІНІЦІАЛІЗАЦІЯ ST.SESSION_STATE
-# ==========================================
 if "messages" not in st.session_state:
     st.session_state.messages = []
 if "itinerary" not in st.session_state:
@@ -45,20 +36,15 @@ if "thread_id" not in st.session_state:
 if "token_count" not in st.session_state:
     st.session_state.token_count = 0
 
-# ==========================================
-# 2b. БІЧНА ПАНЕЛЬ (st.sidebar)
-# ==========================================
 with st.sidebar:
     st.title("⚙️ Налаштування")
     
-    # 5d. Перемикач режимів
     chat_mode = st.radio("Режим роботи:", ["Звичайний чат (Стрімінг)", "Агент з інструментами"])
     
     st.divider()
     temperature = st.slider("Температура (Креативність)", 0.0, 2.0, 0.7, 0.1)
     max_tokens = st.number_input("Max Tokens", 100, 8192, 1500)
     
-    # 7b. Редагування системного промпта
     system_prompt = st.text_area(
         "Системний промпт:", 
         "Ти TravelBot. Допомагай планувати подорожі. Якщо користувач просить додати місто, обов'язково використовуй інструмент add_stop."
@@ -72,42 +58,32 @@ with st.sidebar:
         st.session_state.token_count = 0
         st.rerun()
 
-# ==========================================
-# ГОЛОВНИЙ ІНТЕРФЕЙС (6a: Вкладки)
-# ==========================================
 st.title("✈️ AI Travel Planner")
 
 tab1, tab2 = st.tabs(["💬 Планування (Чат)", "🗺️ Ваш маршрут та Експорт"])
 
 with tab1:
-    # 6a: Колонки
     chat_col, stats_col = st.columns([3, 1])
     
     with stats_col:
-        # 7c: Статистика використання
         st.metric("Повідомлень", len(st.session_state.messages))
         st.metric("Токенів (оцінка)", st.session_state.token_count)
     
     with chat_col:
-        # 3d. Привітальне повідомлення
         if not st.session_state.messages:
             st.chat_message("assistant").write("Привіт! Я TravelBot. Скажи куди ти хочеш поїхати або попроси мене додати місто до твого маршруту!")
 
-        # 3c. Цикл історії
         for msg in st.session_state.messages:
             st.chat_message(msg["role"]).write(msg["content"])
 
-        # 3b. Введення (chat_input)
         if prompt := st.chat_input("Наприклад: Склади план в Париж на 3 дні і додай його в таблицю"):
             st.chat_message("user").write(prompt)
             st.session_state.messages.append({"role": "user", "content": prompt})
             
             with st.chat_message("assistant"):
-                # 4d. Індикатор завантаження
                 with st.spinner("Складаю маршрут..."):
                     
                     if chat_mode == "Звичайний чат (Стрімінг)":
-                        # 4b. Конвертація історії
                         contents = []
                         config = types.GenerateContentConfig(
                             system_instruction=system_prompt,
@@ -118,7 +94,6 @@ with tab1:
                             role = "model" if m["role"] == "assistant" else "user"
                             contents.append(types.Content(role=role, parts=[types.Part.from_text(m["content"])]))
                         
-                        # 4c. Стрімінг
                         try:
                             def stream():
                                 response = client.models.generate_content_stream(
@@ -131,7 +106,6 @@ with tab1:
                             st.error(full_response)
                             
                     else:
-                        # 5c. Виклик агента
                         try:
                             full_response = run_agent_chat(prompt, st.session_state.thread_id, system_prompt)
                             st.write(full_response)
@@ -146,7 +120,6 @@ with tab1:
 with tab2:
     st.subheader("Поточний план подорожі")
     
-    # 6a. Таблиця та Метрики
     if st.session_state.itinerary:
         df = pd.DataFrame(st.session_state.itinerary)
         
@@ -156,7 +129,6 @@ with tab2:
         
         st.dataframe(df, use_container_width=True)
         
-        # 7a. Експорт (Таблиці та Чату)
         col_dl1, col_dl2 = st.columns(2)
         with col_dl1:
             csv = df.to_csv(index=False).encode('utf-8')
@@ -167,7 +139,6 @@ with tab2:
     else:
         st.info("Маршрут порожній. Попросіть агента додати зупинки або використайте форму нижче.")
 
-    # 6b. Форма для ручного введення
     with st.expander("➕ Додати зупинку вручну (без ШІ)"):
         with st.form("manual_add"):
             c_name = st.text_input("Місто")
