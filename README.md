@@ -7,3 +7,6 @@
 1. Встановіть необхідні залежності з файлу `requirements.txt`:
    ```bash
    pip install -r requirements.txt
+2. Створіть файл `.streamlit/` та додайте туди файл з текстом `GOOGLE_API_KEY = "Ваш_ключ"`:
+   ```bash
+   secrets.toml
