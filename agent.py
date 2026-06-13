@@ -9,14 +9,11 @@ from langgraph.prebuilt import ToolNode, tools_condition
 from langgraph.checkpoint.memory import MemorySaver
 import streamlit as st
 
-# Отримуємо ключ
 api_key = st.secrets.get("GOOGLE_API_KEY") or os.getenv("GOOGLE_API_KEY")
 
-# --- 5b. Інструменти агента ---
 @tool
 def add_stop(city: str, activity: str, days: int):
     """Додає нову зупинку до маршруту подорожі."""
-    # Звертаємось безпосередньо до стану Streamlit, щоб оновлювати UI
     if "itinerary" not in st.session_state:
         st.session_state.itinerary = []
     
@@ -36,7 +33,6 @@ def estimate_budget(days: int, daily_budget: float = 100.0):
 tools = [add_stop, estimate_budget]
 tool_node = ToolNode(tools)
 
-# --- 5a. Структура LangGraph ---
 class State(TypedDict):
     messages: Annotated[list, add_messages]
 
@@ -56,7 +52,6 @@ workflow.add_edge("tools", "agent")
 memory = MemorySaver()
 compiled_graph = workflow.compile(checkpointer=memory)
 
-# --- 5c. Функція виклику агента ---
 def run_agent_chat(user_input: str, thread_id: str, system_prompt: str):
     config = {"configurable": {"thread_id": thread_id}}
     
