@@ -12,7 +12,7 @@ st.set_page_config(page_title="TravelBot AI", page_icon="✈️", layout="wide")
 st.markdown("""
 <style>
     .stChatMessage { border-radius: 10px; margin-bottom: 10px; }
-    .stMetric { background-color: #f0f8ff; padding: 15px; border-radius: 10px; }
+    .stMetric { background-color: rgba(128, 128, 128, 0.1); padding: 15px; border-radius: 10px; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -90,12 +90,12 @@ with tab1:
                             temperature=temperature,
                             max_output_tokens=max_tokens
                         )
-                            for m in st.session_state.messages:
-                                role = "model" if m["role"] == "assistant" else "user"
-                                safe_text = str(m.get("content", ""))
-                                if not safe_text.strip():
-                                    safe_text = " "
-                                contents.append(types.Content(role=role, parts=[types.Part.from_text(text=safe_text)]))
+                        for m in st.session_state.messages:
+                            role = "model" if m["role"] == "assistant" else "user"
+                            safe_text = str(m.get("content", ""))
+                            if not safe_text.strip():
+                                safe_text = " "
+                            contents.append(types.Content(role=role, parts=[types.Part.from_text(text=safe_text)]))
                         
                         try:
                             def stream():
