@@ -47,4 +47,7 @@
 
 `wikipedia_search(city)` — інструмент інтернет-пошуку для збору цікавих фактів, визначних пам'яток та актуальної інформації про обране місто.
 
-![Image alt](https://github.com/Krestooov-bot/homework_travelbot/blob/main/изображение_2026-06-14_184104329.png)
+![Image main](https://github.com/Krestooov-bot/homework_travelbot/blob/main/изображение_2026-06-14_184104329.png)
+
+![Image main2](https://github.com/Krestooov-bot/homework_travelbot/blob/main/изображение_2026-06-14_184117756.png)
+
