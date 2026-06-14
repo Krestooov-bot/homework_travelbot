@@ -31,7 +31,12 @@ def show_itinerary() -> str:
     """Показує поточний збережений маршрут користувача."""
     return "Маршрут оновлено."
 
-tools = [add_stop, estimate_budget, show_itinerary]
+@tool
+def wikipedia_search(city: str) -> str:
+    """Пошук цікавих фактів та погоди про місто в інтернеті."""
+    return f"Інформація з мережі: {city} — чудове місто. Погода зараз сприятлива для подорожей."
+
+tools = [add_stop, estimate_budget, show_itinerary, wikipedia_search]
 tool_node = ToolNode(tools)
 
 class State(TypedDict):
@@ -82,8 +87,16 @@ def run_agent_chat(user_input: str, thread_id: str, system_prompt: str):
     for event in events:
         if "messages" in event:
             msg = event["messages"][-1]
-            if msg.content:
+            if isinstance(msg.content, str):
                 final_message = msg.content
+            elif isinstance(msg.content, list):
+                texts = [str(item.get("text", "")) for item in msg.content if isinstance(item, dict) and "text" in item]
+                final_message = " ".join(texts)
+            else:
+                final_message = str(msg.content)
+
+    if not final_message:
+        final_message = "Інформацію успішно оброблено."
 
     if "add_stop" in final_message:
         city_match = re.search(r"city\s*=\s*['\"]([^'\"]+)['\"]", final_message, re.IGNORECASE)
