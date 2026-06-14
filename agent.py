@@ -38,7 +38,7 @@ class State(TypedDict):
     messages: Annotated[list, add_messages]
 
 def call_model(state: State):
-    model = ChatGoogleGenerativeAI(model="gemini-1.5-flash", google_api_key=api_key, temperature=0)
+    model = ChatGoogleGenerativeAI(model="gemini-1.5-flash-latest", google_api_key=api_key, temperature=0.1)
     model_with_tools = model.bind_tools(tools)
     response = model_with_tools.invoke(state['messages'])
 
